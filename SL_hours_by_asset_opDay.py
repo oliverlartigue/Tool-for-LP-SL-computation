@@ -81,7 +81,7 @@ def SL_hours_by_asset_by_operating_day(df):
 
 ### Test script SL_hours_by_asset_opDay
 if __name__ == "__main__":  # the if condition prevent the above code from failing when called by another python file, but enable the following test code to run if exectuted from the current file
-    main_folder_path = r'C:\Users\oliver.lartigue\OneDrive - Rio Tinto\Documents\31. Tool for LP SL computation\Testing Files Input and Output'
+    main_folder_path = r'C:\Users\oliver.lartigue\OneDrive - Rio Tinto\Documents\31. Tool for LP SL computation\Testing Input and Output Files'
     df_in = pd.read_excel(os.path.join(main_folder_path, 'input_for_testing_SL_hours_by_asset_opDay.xlsx'))
     df_out = SL_hours_by_asset_by_operating_day(effective_hours_by_asset_by_startEndDate(df_in))
     output_file_1 = os.path.join(main_folder_path, 'output_for_testing_SL_hours_by_asset_opDay.xlsx')

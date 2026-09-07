@@ -22,10 +22,10 @@ df_calendar = build_split_week_calendar(period_start_date,period_end_date)
 
 ### GET DATA
 # get LP MSF mapping
-df_mapping = pd.read_excel(os.path.join(main_folder_path,'Input Files\LP MSF mapping.xlsx'))
+df_mapping = pd.read_excel(os.path.join(main_folder_path,'Main Input Files\LP MSF mapping.xlsx'))
 # df_mapping example: [assetGroupingPK:1, assetGroupingName:B4 Plant, planningGroupName:Brockman 4, assetClassName:Plant, MSFName:BM4PLT, percentageImpact:1]     
 # get MSF shut
-df_rawshuts = pd.read_excel(os.path.join(main_folder_path,'Input Files\MSF shuts.xlsx'))
+df_rawshuts = pd.read_excel(os.path.join(main_folder_path,'Main Input Files\MSF shuts.xlsx'))
 df_rawshuts = df_rawshuts[['SourceIdentifier_AssetCode','MaintenanceShutdown_BK','MaintenanceShutdownPlannedFeedOff','MaintenanceShutdownPlannedFeedOn']]
 # df_rawshuts example: [SourceIdentifier_AssetCode:BM4PLT, MaintenanceShutdown_BK:41667, MaintenanceShutdownPlannedFeedOff:26/11/2026  7:00:00 AM, MaintenanceShutdownPlannedFeedOn:26/11/2026]  9:00:00 AM
 # join mapping to MSF shuts
@@ -38,7 +38,7 @@ df_shuts.insert(0, 'index', range(1, len(df_shuts) + 1))  #insert an index start
 
 
 # write an excel file with the MSF shut and the LP mapping
-output_file_1 = os.path.join(main_folder_path,'input_shuts_after_mapping.xlsx')
+output_file_1 = os.path.join(main_folder_path,'Main Output Files\output_MSF_shuts_after_mapping.xlsx')
 df_shuts.to_excel(output_file_1, index=False)
 print(f"Saved to: {output_file_1}")
 
@@ -64,21 +64,21 @@ df_SL_opDay = SL_hours_by_asset_by_operating_day(effective_hours_by_asset_by_sta
 df_SL_splitWeeek = SL_hours_by_asset_by_split_week(df_SL_opDay, df_calendar)
 
 ### WRITE OUTPUT IN EXCEL
-output_file_2 = os.path.join(main_folder_path,'Output_splitShuts.xlsx')
+output_file_2 = os.path.join(main_folder_path,'Main Output Files\output_splitShuts.xlsx')
 df_split.to_excel(output_file_2, index=False)
 print(f"Saved to: {output_file_2}")
-output_file_3 = os.path.join(main_folder_path, 'Output_SL_hours_opDay.xlsx')
+output_file_3 = os.path.join(main_folder_path, 'Main Output Files\output_SL_hours_opDay.xlsx')
 df_SL_opDay.to_excel(output_file_3, index=False)
 print(f"Saved to: {output_file_3}")
-output_file_4 = os.path.join(main_folder_path, 'Output_SL_hours_splitWeek.xlsx')
+output_file_4 = os.path.join(main_folder_path, 'Main Output Files\output_SL_hours_splitWeek.xlsx')
 df_SL_splitWeeek.to_excel(output_file_4, index=False)
 print(f"Saved to: {output_file_4}")
 
 
 ### COMPARE OUTPUT WITH LP
-df_LP = pd.read_csv(os.path.join(main_folder_path, 'Input Files\LP SL.csv'))  # get LP SL
+df_LP = pd.read_csv(os.path.join(main_folder_path, 'Main Input Files\LP SL.csv'))  # get LP SL
 df_comparison = compare_SL_output_with_LP(df_SL_splitWeeek,df_LP)
-output_file_5 = os.path.join(main_folder_path, 'Output_SL_comparison_for testing.xlsx')
+output_file_5 = os.path.join(main_folder_path, 'Main Output Files\output_SL_comparison_for testing.xlsx')
 df_comparison.to_excel(output_file_5, index=False)
               
 

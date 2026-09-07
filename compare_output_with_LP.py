@@ -87,14 +87,14 @@ def compare_SL_output_with_LP (df_SL_output, df_SL_LP):
 
 
 
-# # RUN:
+### Test script compare_output_with_LP
 if __name__ == "__main__":  # the if condition prevent the above code from failing when called by another python file, but enable the following test code to run if exectuted from the current file
-    main_folder_path = r'C:\Users\oliver.lartigue\OneDrive - Rio Tinto\Documents\31. Tool for LP SL computation'
-    df_SL_splitWeek = pd.read_excel(os.path.join(main_folder_path, 'Output_SL_hours_splitWeek.xlsx'))
-    df_LP = pd.read_csv(os.path.join(main_folder_path, 'Input Files\LP SL.csv'))
+    main_folder_path = r'C:\Users\oliver.lartigue\OneDrive - Rio Tinto\Documents\31. Tool for LP SL computation\Testing Input and Output Files'
+    df_SL_splitWeek = pd.read_excel(os.path.join(main_folder_path, 'input_for_testing_compare_output_with_LP_outputsl.xlsx'))
+    df_LP = pd.read_csv(os.path.join(main_folder_path, 'input_for_testing_compare_output_with_LP_lpsl.csv'))
     df_comparison = compare_SL_output_with_LP(df_SL_splitWeek,df_LP)
-    output_file = os.path.join(main_folder_path, 'Output_SL_comparison_for testing.xlsx')
+    output_file = os.path.join(main_folder_path, 'output_for_testing_compare_output_with_LP.xlsx')
     df_comparison.to_excel(output_file, index=False)
-
+### End Test script
 
 ###     END of script
