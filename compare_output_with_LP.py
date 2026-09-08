@@ -9,8 +9,6 @@ def compare_SL_output_with_LP (df_SL_output, df_SL_LP):
 
 
     # PREPARE JOIN FIELDS
-    # Convert SplitWeekStartDate6am to date-only
-    df_SL_output["SplitWeekStartDate"] = pd.to_datetime(df_SL_output["SplitWeekStartDate6am"],errors="coerce").dt.normalize()
     # Convert LP fromDate to date-only
     df_SL_LP["fromDate"] = pd.to_datetime(df_SL_LP["fromDate"],errors="coerce").dt.normalize()
     # Ensure metricValue is numeric
@@ -56,7 +54,7 @@ def compare_SL_output_with_LP (df_SL_output, df_SL_LP):
     )
 
     # Remove temporary and duplicate join columns
-    df_comparison = df_comparison.drop(columns=["Circuit_Name", "SplitWeekStartDate"])
+    df_comparison = df_comparison.drop(columns=["Circuit_Name"])
 
     # compute diff
     df_comparison['CTHours_Output_less_LP'] = (df_comparison['CalendarHours'] - df_comparison['LP_CalendarHours']).round(2)  # round(2) : round to have zero when diff is less than 2 decimals
@@ -69,8 +67,8 @@ def compare_SL_output_with_LP (df_SL_output, df_SL_LP):
         [
             "asset",
             "SplitWeekCode",
-            "SplitWeekStartDate6am",
-            "SplitWeekEndDate6am",
+            "SplitWeekStartDate",
+            "SplitWeekEndDate",            
             "CalendarHours",
             "SLHours",
             "SLPct",

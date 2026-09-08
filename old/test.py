@@ -1,111 +1,203 @@
 import pandas as pd
 import os
 
-main_folder_path = r'C:\Users\oliver.lartigue\OneDrive - Rio Tinto\Documents\31. Tool for LP SL computation'
 
+def build_split_week_calendar(start_date, end_date):
+    # call the function : df_calendar = build_split_week_calendar("2026-10-25","2027-11-08")
+    # function output a dataframe with rows for each date and has columns for:
+    # Date, Date6am, Year, MonthNumber, Day, WeekNumber,
+    # SplitWeekCode, SplitWeekStartDate6am, SplitWeekEndDate6am
+    # split week Monday to Sunday, unless start/end of month
 
-# Assumptions:
-df_SL_splitWeek = pd.read_excel(os.path.join(main_folder_path, 'Output_SL_hours_splitWeek.xlsx'))
-df_LP = pd.read_csv(os.path.join(main_folder_path, 'Input Files\LP SL.csv'))
+    df = pd.DataFrame({
+        "Date": pd.date_range(start_date, end_date, freq="D")
+    })
 
-# -----------------------------------------------------------------------------
-# PREPARE JOIN FIELDS
-# -----------------------------------------------------------------------------
+    df["Year"] = df["Date"].dt.year
+    df["MonthNumber"] = df["Date"].dt.month
+    df["Day"] = df["Date"].dt.day
 
-# Convert SplitWeekStartDate6am to date-only
-df_SL_splitWeek["joinDate"] = pd.to_datetime(
-    df_SL_splitWeek["SplitWeekStartDate6am"],
-    errors="coerce"
-).dt.normalize()
+    iso = df["Date"].dt.isocalendar()
+    df["ISOYear"] = iso.year
+    df["WeekNumber"] = iso.week
 
-# Convert LP fromDate to date-only
-df_LP["joinDate"] = pd.to_datetime(
-    df_LP["fromDate"],
-    errors="coerce"
-).dt.normalize()
+    # Build split-week start/end dates
+    rows = []
 
-# Ensure metricValue is numeric
-df_LP["metricValue"] = pd.to_numeric(
-    df_LP["metricValue"],
-    errors="coerce"
-)
+    for (year, month), group in df.groupby(
+        ["Year", "MonthNumber"],
+        sort=False
+    ):
 
+        month_start = group["Date"].min()
+        month_end = group["Date"].max()
 
-# -----------------------------------------------------------------------------
-# FILTER AND PIVOT LP DATA
-# -----------------------------------------------------------------------------
+        current_start = month_start
 
-required_metrics = [
-    "Calendar Time",
-    "Scheduled Loss",
-    "Scheduled Loss Percentage",
-]
+        while current_start <= month_end:
 
-df_LP_metrics = (
-    df_LP.loc[
-        df_LP["metricName"].isin(required_metrics),
-        ["Circuit_Name", "joinDate", "metricName", "metricValue"]
-    ]
-    .pivot_table(
-        index=["Circuit_Name", "joinDate"],
-        columns="metricName",
-        values="metricValue",
-        aggfunc="first"
+            week_end = current_start + pd.Timedelta(
+                days=(6 - current_start.weekday())
+            )
+
+            week_end = min(week_end, month_end)
+
+            for d in pd.date_range(
+                current_start,
+                week_end,
+                freq="D"
+            ):
+                rows.append({
+                    "Date": d,
+                    "SplitWeekStart": current_start,
+                    "SplitWeekEnd": week_end
+                })
+
+            current_start = (
+                week_end + pd.Timedelta(days=1)
+            )
+
+    split_df = pd.DataFrame(rows)
+
+    df = df.merge(
+        split_df,
+        on="Date",
+        how="left"
     )
-    .reset_index()
-    .rename(
-        columns={
-            "Calendar Time": "LP_CalendarHours",
-            "Scheduled Loss": "LP_SLHours",
-            "Scheduled Loss Percentage": "LP_SLPct",
-        }
+
+    # Default week code
+    df["SplitWeekCode"] = df["WeekNumber"].astype(str)
+
+    # One row per split period inside each ISO week
+    split_periods = (
+        df.groupby(
+            ["ISOYear", "WeekNumber", "SplitWeekStart"],
+            as_index=False
+        )
+        .agg(
+            FirstDate=("Date", "min")
+        )
+        .sort_values(
+            ["ISOYear", "WeekNumber", "FirstDate"]
+        )
     )
-)
 
-# Convert percentage from values such as 3.125 to 0.03125
-df_LP_metrics["LP_SLPct"] = (
-    df_LP_metrics["LP_SLPct"] / 100
-)
+    # Number periods within each ISO week
+    split_periods["PeriodOrder"] = (
+        split_periods
+        .groupby(["ISOYear", "WeekNumber"])
+        .cumcount()
+        + 1
+    )
 
+    split_counts = (
+        split_periods
+        .groupby(
+            ["ISOYear", "WeekNumber"],
+            as_index=False
+        )
+        .agg(
+            NumPeriods=("PeriodOrder", "max")
+        )
+    )
 
-# -----------------------------------------------------------------------------
-# JOIN LP VALUES TO THE FIRST DATAFRAME
-# -----------------------------------------------------------------------------
+    split_periods = split_periods.merge(
+        split_counts,
+        on=["ISOYear", "WeekNumber"],
+        how="left"
+    )
 
-df_comparison = df_SL_splitWeek.merge(
-    df_LP_metrics,
-    left_on=["asset", "joinDate"],
-    right_on=["Circuit_Name", "joinDate"],
-    how="left",
-    validate="many_to_one"
-)
+    split_periods["Suffix"] = ""
 
-# Remove temporary and duplicate join columns
-df_comparison = df_comparison.drop(
-    columns=["Circuit_Name", "joinDate"]
-)
+    # Only assign A/B to genuinely split weeks
+    split_periods.loc[
+        (split_periods["NumPeriods"] == 2)
+        &
+        (split_periods["PeriodOrder"] == 1),
+        "Suffix"
+    ] = "A"
 
+    split_periods.loc[
+        (split_periods["NumPeriods"] == 2)
+        &
+        (split_periods["PeriodOrder"] == 2),
+        "Suffix"
+    ] = "B"
 
-# -----------------------------------------------------------------------------
-# OPTIONAL: SELECT AND ORDER THE FINAL COLUMNS
-# -----------------------------------------------------------------------------
+    df = df.merge(
+        split_periods[
+            [
+                "ISOYear",
+                "WeekNumber",
+                "SplitWeekStart",
+                "Suffix"
+            ]
+        ],
+        on=[
+            "ISOYear",
+            "WeekNumber",
+            "SplitWeekStart"
+        ],
+        how="left"
+    )
 
-df_comparison = df_comparison[
-    [
-        "asset",
-        "SplitWeekCode",
-        "SplitWeekStartDate6am",
-        "SplitWeekEndDate6am",
-        "CalendarHours",
-        "SLHours",
-        "SLPct",
-        "LP_CalendarHours",
-        "LP_SLHours",
-        "LP_SLPct",
+    df["SplitWeekCode"] = (
+        df["WeekNumber"].astype(str)
+        + df["Suffix"].fillna("")
+    )
+
+    # 6am versions
+    df["Date6am"] = (
+        df["Date"]
+        + pd.Timedelta(hours=6)
+    )
+
+    df["SplitWeekStartDate6am"] = (
+        df["SplitWeekStart"]
+        + pd.Timedelta(hours=6)
+    )
+
+    # Exclusive end boundary
+    df["SplitWeekEndDate6am"] = (
+        df["SplitWeekEnd"]
+        + pd.Timedelta(days=1, hours=6)
+    )
+
+    return df[
+        [
+            "Date",
+            "Date6am",
+            "Year",
+            "MonthNumber",
+            "Day",
+            "WeekNumber",
+            "SplitWeekCode",
+            "SplitWeekStartDate6am",
+            "SplitWeekEndDate6am"
+        ]
     ]
-]
 
-print(df_comparison)
-output_file = os.path.join(main_folder_path, 'Output_SL_comparison_for testing.xlsx')
-df_comparison.to_excel(output_file, index=False)
-print(f"Saved to: {output_file}")
+
+# Test script generate_calendar
+if __name__ == "__main__":
+
+    main_folder_path = (
+        r'C:\Users\oliver.lartigue\OneDrive - Rio Tinto\Documents\31. Tool for LP SL computation\Testing Files Input and Output'
+    )
+
+    period_start_date = "2026-10-01"
+    period_end_date = "2027-12-31"
+
+    df_out = build_split_week_calendar(
+        period_start_date,
+        period_end_date
+    )
+
+    output_file_1 = os.path.join(
+        main_folder_path,
+        'output_for_testing_generate_calendar.xlsx'
+    )
+
+    df_out.to_excel(output_file_1, index=False)
+
+    print(f"Saved to: {output_file_1}")

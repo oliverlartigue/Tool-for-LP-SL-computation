@@ -103,10 +103,16 @@ def SL_hours_by_asset_by_split_week(df_sl, df_calendar):
         / result['CalendarHours']
     )
 
+    # SplitWeekStartDate zero hout and SplitWeekEndDate zero hour
+    result['SplitWeekStartDate'] = result['SplitWeekStartDate6am'] - pd.Timedelta(days=0) - pd.Timedelta(hours=6)
+    result['SplitWeekEndDate'] = result['SplitWeekEndDate6am'] - pd.Timedelta(days=1) - pd.Timedelta(hours=6)
+
     result = result[
         [
             'asset',
             'SplitWeekCode',
+            'SplitWeekStartDate',
+            'SplitWeekEndDate',
             'SplitWeekStartDate6am',
             'SplitWeekEndDate6am',
             'CalendarHours',

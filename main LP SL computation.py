@@ -78,7 +78,7 @@ print(f"Saved to: {output_file_4}")
 ### COMPARE OUTPUT WITH LP
 df_LP = pd.read_csv(os.path.join(main_folder_path, 'Main Input Files\LP SL.csv'))  # get LP SL
 df_comparison = compare_SL_output_with_LP(df_SL_splitWeeek,df_LP)
-output_file_5 = os.path.join(main_folder_path, 'Main Output Files\output_SL_comparison_for testing.xlsx')
+output_file_5 = os.path.join(main_folder_path, 'Main Output Files\output_SL_comparison_with LP.xlsx')
 df_comparison.to_excel(output_file_5, index=False)
               
 

@@ -44,8 +44,8 @@ def build_split_week_calendar(start_date, end_date):
             ):
                 rows.append({
                     "Date": d,
-                    "SplitWeekStartDate": current_start,
-                    "SplitWeekEndDate": week_end
+                    "SplitWeekStart": current_start,
+                    "SplitWeekEnd": week_end
                 })
 
             current_start = (
@@ -60,95 +60,61 @@ def build_split_week_calendar(start_date, end_date):
         how="left"
     )
 
-    # Default week code
-    df["SplitWeekCode"] = df["WeekNumber"].astype(str)
-
-    # Find split periods within each ISO week
-    split_periods = (
+    # Identify ISO weeks that span two months
+    week_info = (
         df.groupby(
-            ["ISOYear", "WeekNumber", "SplitWeekStartDate"],
-            as_index=False
+            ["ISOYear", "WeekNumber"]
         )
         .agg(
-            FirstDate=("Date", "min")
+            FirstMonth=("MonthNumber", "min"),
+            LastMonth=("MonthNumber", "max")
         )
+        .reset_index()
     )
 
-    # Earliest split period = A
-    split_periods["MinSplitWeekStartDate"] = (
-        split_periods.groupby(
-            ["ISOYear", "WeekNumber"]
-        )["SplitWeekStartDate"]
-        .transform("min")
-    )
-
-    # Latest split period = B
-    split_periods["MaxSplitWeekStartDate"] = (
-        split_periods.groupby(
-            ["ISOYear", "WeekNumber"]
-        )["SplitWeekStartDate"]
-        .transform("max")
-    )
-
-    split_periods["Suffix"] = ""
-
-    split_periods.loc[
-        split_periods["SplitWeekStartDate"]
-        ==
-        split_periods["MinSplitWeekStartDate"],
-        "Suffix"
-    ] = "A"
-
-    split_periods.loc[
-        split_periods["SplitWeekStartDate"]
-        ==
-        split_periods["MaxSplitWeekStartDate"],
-        "Suffix"
-    ] = "B"
-
-    # Weeks not split should have blank suffix
-    split_counts = (
-        split_periods.groupby(
-            ["ISOYear", "WeekNumber"]
-        )["SplitWeekStartDate"]
-        .nunique()
-        .reset_index(name="NumPeriods")
-    )
-
-    split_periods = split_periods.merge(
-        split_counts,
+    df = df.merge(
+        week_info,
         on=["ISOYear", "WeekNumber"],
         how="left"
     )
 
-    split_periods.loc[
-        split_periods["NumPeriods"] == 1,
-        "Suffix"
-    ] = ""
-
-    df = df.merge(
-        split_periods[
-            [
-                "ISOYear",
-                "WeekNumber",
-                "SplitWeekStartDate",
-                "Suffix"
-            ]
-        ],
-        on=[
-            "ISOYear",
-            "WeekNumber",
-            "SplitWeekStartDate"
-        ],
-        how="left"
-    )
-
+    # Default week code
     df["SplitWeekCode"] = (
         df["WeekNumber"].astype(str)
-        + df["Suffix"]
     )
 
+    # Apply A/B suffix when ISO week crosses month end
+    mask = (
+        df["FirstMonth"]
+        !=
+        df["LastMonth"]
+    )
 
+    df.loc[
+        mask &
+        (
+            df["MonthNumber"]
+            ==
+            df["FirstMonth"]
+        ),
+        "SplitWeekCode"
+    ] = (
+        df["WeekNumber"].astype(str)
+        + "A"
+    )
+
+    df.loc[
+        mask &
+        (
+            df["MonthNumber"]
+            ==
+            df["LastMonth"]
+        ),
+        "SplitWeekCode"
+    ] = (
+        df["WeekNumber"].astype(str)
+        + "B"
+    )
 
     # 6am versions
     df["Date6am"] = (
@@ -157,12 +123,12 @@ def build_split_week_calendar(start_date, end_date):
     )
 
     df["SplitWeekStartDate6am"] = (
-        df["SplitWeekStartDate"]
+        df["SplitWeekStart"]
         + pd.Timedelta(hours=6)
     )
 
     df["SplitWeekEndDate6am"] = (
-        df["SplitWeekEndDate"]
+        df["SplitWeekEnd"]
         + pd.Timedelta(days=1,hours=6)
     )
 
@@ -175,8 +141,6 @@ def build_split_week_calendar(start_date, end_date):
             "Day",
             "WeekNumber",
             "SplitWeekCode",
-            "SplitWeekStartDate",
-            "SplitWeekEndDate",            
             "SplitWeekStartDate6am",
             "SplitWeekEndDate6am"
         ]
@@ -185,7 +149,7 @@ def build_split_week_calendar(start_date, end_date):
 
 ### Test script generate_calendar
 if __name__ == "__main__":  # the if condition prevent the above code from failing when called by another python file, but enable the following test code to run if exectuted from the current file
-    main_folder_path = r'C:\Users\oliver.lartigue\OneDrive - Rio Tinto\Documents\31. Tool for LP SL computation\Testing Input and Output Files'
+    main_folder_path = r'C:\Users\oliver.lartigue\OneDrive - Rio Tinto\Documents\31. Tool for LP SL computation\Testing Files Input and Output'
     period_start_date = "2026-10-01"
     period_end_date = "2027-12-31"
     df_out = build_split_week_calendar(period_start_date,period_end_date)
