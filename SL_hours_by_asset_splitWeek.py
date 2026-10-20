@@ -35,7 +35,20 @@ def SL_hours_by_asset_by_split_week(df_sl, df_calendar):
             as_index=False
         )
         .agg(
-            SLHours=('SLHours', 'sum')
+            SLHours=('SLHours', 'sum'),
+            maintenanceShutdownBKss=(  # get a list of unique shutdownBK
+                'maintenanceShutdownBKss',
+                lambda x: '|'.join(
+                    sorted(
+                        {
+                            bk.strip()
+                            for val in x.dropna().astype(str)
+                            for bk in val.split('|')
+                            if bk.strip()
+                        }
+                    )
+                )
+            )
         )
     )
 
@@ -80,7 +93,8 @@ def SL_hours_by_asset_by_split_week(df_sl, df_calendar):
             'SplitWeekStartDate6am',
             'SplitWeekEndDate6am'
         ],
-        how='left'
+        how='left',
+        validate='one_to_one'
     )
 
     # Missing weeks get zero SL hours
@@ -117,7 +131,8 @@ def SL_hours_by_asset_by_split_week(df_sl, df_calendar):
             'SplitWeekEndDate6am',
             'CalendarHours',
             'SLHours',
-            'SLPct'
+            'SLPct',
+            'maintenanceShutdownBKss'
         ]
     ]
 

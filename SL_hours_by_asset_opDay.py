@@ -78,7 +78,7 @@ def effective_hours_by_asset_by_startEndDate(df):
 
 def SL_hours_by_asset_by_operating_day(df):
 
-    group_cols = ['asset', 'operatingDay']
+    group_cols = ['asset', 'operatingDay', 'maintenanceShutdownBKss']
 
     result = (
         df.groupby(group_cols, as_index=False)
@@ -92,8 +92,8 @@ def SL_hours_by_asset_by_operating_day(df):
         [
             'asset',
             'operatingDay',            
-            'SLHours'
-
+            'SLHours',
+            'maintenanceShutdownBKss'
         ]
     ]
 
