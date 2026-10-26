@@ -1,9 +1,5 @@
-# Oliver lartigue - Sep 2026
+# Oliver lartigue - Oct 2026
 # Script import shut data from MSF, LP MSF mapping, and return SL a LP would compute the forward adjustments
-
-
-#######  !!!!!!!!!!!!  NEED TO EXCLUDE SHUT WHERE SHUT TYPE = SITE CONSTRAINT
-
 
 
 import pandas as pd
@@ -15,8 +11,11 @@ from SL_hours_by_asset_opDay import SL_hours_by_asset_by_operating_day, effectiv
 from SL_hours_by_asset_splitWeek  import SL_hours_by_asset_by_split_week
 from compare_output_with_LP import split_LP_AutoFA_by_splitweek, compare_SL_output_with_LP    
 
+pd.set_option("display.width", None)
+pd.set_option("display.max_columns", None)
 
-period_start_date = "2026-10-01"
+
+period_start_date = "2027-01-01"
 period_end_date = "2027-12-31"
 main_folder_path = r'C:\Users\oliver.lartigue\OneDrive - Rio Tinto\Documents\31. Tool for LP SL computation'
 
@@ -26,23 +25,44 @@ df_calendar = build_split_week_calendar(period_start_date,period_end_date)
 
 
 ### GET DATA
-# get LP MSF mapping
-df_mapping = pd.read_excel(os.path.join(main_folder_path,'Main Input Files','LP MSF mapping.xlsx'))
-# df_mapping example: [assetGroupingPK:1, assetGroupingName:B4 Plant, planningGroupName:Brockman 4, assetClassName:Plant, MSFName:BM4PLT, percentageImpact:1]     
-# get MSF shut 
-df_rawshuts = pd.read_excel(os.path.join(main_folder_path,'Main Input Files','MSF shuts.xlsx'))
-df_rawshuts = df_rawshuts[df_rawshuts['MaintenanceShutdownTypeName'] != 'Site Constraint']  # filter out shuts when Shut type = Site Constraint 
-df_rawshuts = df_rawshuts[['SourceIdentifier_AssetCode','MaintenanceShutdown_BK','MaintenanceShutdownPlannedFeedOff','MaintenanceShutdownPlannedFeedOn']]
-# df_rawshuts example: [SourceIdentifier_AssetCode:BM4PLT, MaintenanceShutdown_BK:41667, MaintenanceShutdownPlannedFeedOff:26/11/2026  7:00:00 AM, MaintenanceShutdownPlannedFeedOn:26/11/2026]  9:00:00 AM
-# join mapping to MSF shuts
-df_shuts = df_rawshuts.merge(  # add asset group and percentage impact
-    df_mapping, 
-    left_on='SourceIdentifier_AssetCode',right_on='MSFName',how='left')
-df_shuts = df_shuts.dropna(subset=['assetGroupingName'])  # remove row which do not have an assetgroupname from the mapping
-df_shuts = df_shuts.drop(columns=['SourceIdentifier_AssetCode'])  #remove col
-df_shuts.insert(0, 'index', range(1, len(df_shuts) + 1))  #insert an index starting at 1 as the first column
+def get_raw_shut_from_excel_input(): 
+    # get MSF shut 
+    df_rawshuts = pd.read_excel(os.path.join(main_folder_path,'Main Input Files','MSF shuts.xlsx'))
+     # df_rawshuts row example: [VersionName:2027 January QF - Final Maintenance Snapshot, MaintenanceShutdown_BK:41667, MaintenanceShutdownTypeName:Scheduled, 
+     # ... MaintenanceShutdownStatusName:Approved Status, SourceIdentifier_AssetCode:BM4PLT MaintenanceShutdownPlannedFeedOff:26/11/2026  7:00:00 AM, MaintenanceShutdownPlannedFeedOn:26/11/2026]  9:00:00 AM]  
+    df_rawshuts = df_rawshuts[df_rawshuts['MaintenanceShutdownTypeName'] != 'Site Constraint']  # filter out shuts when Shut type = Site Constraint 
+    df_rawshuts['MaintenanceShutdownStatusName'] = df_rawshuts['MaintenanceShutdownStatusName'].replace('Approved Status', 'Approved')  # replace 'Approved Status' by 'Approved' (so that it is consistnet with the API which has 'Approved')     
+    df_rawshuts = df_rawshuts[['VersionName','SourceIdentifier_AssetCode','MaintenanceShutdown_BK', 'MaintenanceShutdownTypeName', 'MaintenanceShutdownStatusName', 'MaintenanceShutdownPlannedFeedOff','MaintenanceShutdownPlannedFeedOn']].rename(
+            columns={
+                "VersionName": "MSFSourceData",
+                "SourceIdentifier_AssetCode": "AssetCode"
+            }
+        )
+    # df_rawshuts row example: [MSFSourceData:2027 January QF - Final Maintenance Snapshot, MaintenanceShutdown_BK:41667, MaintenanceShutdownTypeName:Scheduled, 
+    # ... MaintenanceShutdownStatusName:Approved, AssetCode:BM4PLT, MaintenanceShutdownPlannedFeedOff:26/11/2026  7:00:00 AM, 
+    # ... MaintenanceShutdownPlannedFeedOn:26/11/2026]  9:00:00 AM]
+    return df_rawshuts
 
+def get_LP_MSF_mapping_from_excel_input(): 
+    # get LP MSF mapping
+    df_mapping = pd.read_excel(os.path.join(main_folder_path,'Main Input Files','LP MSF mapping.xlsx'))
+    # df_mapping example: [assetGroupingPK:1, assetGroupingName:B4 Plant, planningGroupName:Brockman 4, assetClassName:Plant, MSFName:BM4PLT, percentageImpact:1]    
+    return df_mapping 
 
+def merge_rawshuts_with_mapping(df_rawshuts, df_mapping):  # join LP MSF mapping to MSF shuts
+    # join mapping to MSF shuts
+    df_shuts = df_rawshuts.merge(  # add asset group and percentage impact
+        df_mapping, 
+        left_on='AssetCode',right_on='MSFName',how='left')
+    df_shuts = df_shuts.dropna(subset=['assetGroupingName'])  # remove row which do not have an assetgroupname from the mapping
+    df_shuts = df_shuts.drop(columns=['AssetCode'])  #remove col
+    df_shuts.insert(0, 'index', range(1, len(df_shuts) + 1))  #insert an index starting at 1 as the first column
+    return df_shuts
+
+df_rawshuts = get_raw_shut_from_excel_input()
+df_mapping = get_LP_MSF_mapping_from_excel_input()
+df_shuts = merge_rawshuts_with_mapping(df_rawshuts, df_mapping)
+print(df_shuts.head(5))
 # write an excel file with the MSF shut and the LP mapping
 output_file_1 = os.path.join(main_folder_path,'Main Output Files','output_MSF_shuts_after_mapping.xlsx')
 df_shuts.to_excel(output_file_1, index=False)
@@ -82,9 +102,10 @@ print(f"Saved to: {output_file_4}")
 
 
 ### COMPARE OUTPUT WITH LP
-df_LP_SL = pd.read_csv(os.path.join(main_folder_path, 'Main Input Files','LP SL.csv'))  # get LP SL
+df_LP_SL = pd.read_excel(os.path.join(main_folder_path, 'Main Input Files','LP SL.xlsx'))  # get LP SL
 df_LP_FA = pd.read_excel(os.path.join(main_folder_path, 'Main Input Files','LP Auto Forward Adjustments.xlsx'))   # get LP FA
 df_autoFA_split_LP = split_LP_AutoFA_by_splitweek(df_LP_FA, df_calendar)
+
 df_comparison_SL = compare_SL_output_with_LP(df_SL_splitWeeek ,df_LP_SL,df_autoFA_split_LP)
 output_file_5 = os.path.join(main_folder_path, 'Main Output Files','output_SL_comparison_with LP.xlsx')
 df_comparison_SL.to_excel(output_file_5, index=False)
