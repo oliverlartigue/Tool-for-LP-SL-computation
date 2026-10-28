@@ -12,7 +12,7 @@ def split_LP_AutoFA_by_splitweek(df_LP_FA, df_calendar):
 
     # Filter LP Forward Adjustments for FXP SL
     df_LP_FA = df_LP_FA[
-        (df_LP_FA['assetClass'].isin(['Plant','Primary Crusher'])) & 
+        (df_LP_FA['assetClass'].isin(['Plant','Primary Crusher','Ship Loader','Car Dumper'])) & 
         (df_LP_FA['metricName'] == 'Scheduled Loss Planned Percentage')
         ]
 
@@ -109,7 +109,7 @@ def compare_SL_output_with_LP (df_SL_output, df_SL_LP, df_autoFA_LP):
     if "SLPct_LP_AllSL" in df_SL_LP_pivoted.columns:  # check that 'SLPct_LP_AllSL' exist before making a computation
         df_SL_LP_pivoted["SLPct_LP_AllSL"] = df_SL_LP_pivoted["SLPct_LP_AllSL"] / 100
     else:
-        print("WARNING: Scheduled Loss Percentage / SLPct_LP_AllSL column is missing in LP_AutoFA data source")
+        print("WARNING: SLPct_LP_AllSL (aka Scheduled Loss Percentage) column is missing in LP data source")
 
     # Keep only the required Auto FA columns 
     df_autoFA_LP = df_autoFA_LP[
@@ -149,9 +149,24 @@ def compare_SL_output_with_LP (df_SL_output, df_SL_LP, df_autoFA_LP):
     # compute diff
     df_comparison['CTHours_Output_less_LP'] = (df_comparison['CalendarHours_Output'] - df_comparison['CalendarHours_LP']).round(2)  # round(2) : round to have zero when diff is less than 2 decimals
     df_comparison['SLHours_Output_less_LP_AllSL'] = (df_comparison['SLHours_Output'] - df_comparison['SLHours_LP_AllSL']).round(2)  # round(2) : round to have zero when diff is less than 2 decimals
-    df_comparison['SLPct_Output_less_LP_AllSL'] = (df_comparison['SLPct_Output'] - df_comparison['SLPct_LP_AllSL']).round(5) # round(5) : round to have zero when diff is less than 5 decimals
-    df_comparison['SLPct_Output_less_LP_AutoFA'] = (df_comparison['SLPct_Output'] - df_comparison['SLPct_LP_AutoFA']).round(5) # round(5) : round to have zero when diff is less than 5 decimals
+#    df_comparison['SLPct_Output_less_LP_AllSL'] = (df_comparison['SLPct_Output'] - df_comparison['SLPct_LP_AllSL']).round(5) # round(5) : round to have zero when diff is less than 5 decimals
+#    df_comparison['SLPct_Output_less_LP_AutoFA'] = (df_comparison['SLPct_Output'] - df_comparison['SLPct_LP_AutoFA']).round(5) # round(5) : round to have zero when diff is less than 5 decimals
 
+    # SLPct LP AllSL comparison
+    if "SLPct_LP_AllSL" in df_comparison.columns:
+        df_comparison['SLPct_Output_less_LP_AllSL'] = (df_comparison['SLPct_Output'] - df_comparison['SLPct_LP_AllSL']).round(5)
+    else:
+        print("WARNING: SLPct_LP_AllSL is missing - comparison not calculated")
+        df_comparison['SLPct_LP_AllSL'] = pd.NA
+        df_comparison['SLPct_Output_less_LP_AllSL'] = pd.NA
+
+    # SLPct LP AutoFA comparison
+    if "SLPct_LP_AutoFA" in df_comparison.columns:
+        df_comparison['SLPct_Output_less_LP_AutoFA'] = (df_comparison['SLPct_Output'] - df_comparison['SLPct_LP_AutoFA']).round(5)
+    else:
+        print("WARNING: SLPct_LP_AutoFA is missing - comparison not calculated")
+        df_comparison['SLPct_LP_AutoFA'] = pd.NA
+        df_comparison['SLPct_Output_less_LP_AutoFA'] = pd.NA
     
     # SELECT AND ORDER THE FINAL COLUMNS
     df_comparison = df_comparison[

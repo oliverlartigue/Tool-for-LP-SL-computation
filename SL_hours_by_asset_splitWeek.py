@@ -9,6 +9,12 @@ import os
 
 def SL_hours_by_asset_by_split_week(df_sl, df_calendar):
 
+    df_sl = df_sl.copy()
+    df_calendar = df_calendar.copy()
+
+    df_sl["operatingDay"] = pd.to_datetime(df_sl["operatingDay"]).dt.tz_localize(None)
+    df_calendar["Date"] = pd.to_datetime(df_calendar["Date"]).dt.tz_localize(None)
+
     # Aggregate SL hours by split week
     df = df_sl.merge(
         df_calendar[
