@@ -5,10 +5,10 @@ def build_split_week_calendar(start_date, end_date):
 # call the fuction : df_calendar = build_split_week_calendar("2026-10-25","2027-11-08")
 # function output a dataframe with rows for each date and has columns for date, year, month, week, day and for split weeek (SplitWeekCode, SplitWeekStartDate6am,SplitWeekEndDate6am)
 # split week Monday to Sunday, unless start/end of month
-    df = pd.DataFrame({
-        "Date": pd.date_range(start_date, end_date, freq="D")
-    })
+    start_date = pd.to_datetime(start_date)
+    end_date = pd.to_datetime(end_date)
 
+    df = pd.DataFrame({"Date": pd.date_range(start_date - pd.Timedelta(days=7),end_date,freq="D")})  #create a dataframe with all dates from 7 days before the requested start date so that the split weeek code are correct for the first week of the requested period 
     df["Year"] = df["Date"].dt.year
     df["MonthNumber"] = df["Date"].dt.month
     df["Day"] = df["Date"].dt.day
@@ -165,6 +165,12 @@ def build_split_week_calendar(start_date, end_date):
         df["SplitWeekEndDate"]
         + pd.Timedelta(days=1,hours=6)
     )
+
+    df = df[
+        (df["Date"] >= start_date) &
+        (df["Date"] <= end_date)
+    ].copy()
+
 
     return df[
         [

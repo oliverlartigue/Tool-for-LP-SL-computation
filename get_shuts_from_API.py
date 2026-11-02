@@ -141,7 +141,7 @@ def get_FXP_shuts_from_MSF_API(params): # get shuts  in a data frame
         if isinstance(value, list) and len(value) > 1:
             print(f"WARNING: Row {index} has multiple AssetCode values: {value}")  # print a warning message if a row has more than one asset code
     run_datetime = datetime.now().strftime("%Y-%m-%d %H:%M")
-    df_shuts['MSFSourceData'] = f"MSF API - FXP - including pending - run at {run_datetime}"  # create a 'MSFSourceData' column with value such as 'MSF API run at 2026-10-26 10:31'    
+    df_shuts['MSFSourceData'] = f"MSF API - FXP - including pending - query run at {run_datetime}"  # create a 'MSFSourceData' column with value such as 'MSF API run at 2026-10-26 10:31'    
     for col in ["MaintenanceShutdownPlannedFeedOff","MaintenanceShutdownPlannedFeedOn"]:
         df_shuts[col] = pd.to_datetime(df_shuts[col]).dt.tz_localize(None)  # normalise the timestamps
     df_shuts = df_shuts[['MSFSourceData','AssetCode','MaintenanceShutdown_BK', 'MaintenanceShutdownTypeName', 'MaintenanceShutdownStatusName', 'MaintenanceShutdownPlannedFeedOff','MaintenanceShutdownPlannedFeedOn']
@@ -152,11 +152,12 @@ def get_FXP_shuts_from_MSF_API(params): # get shuts  in a data frame
             ]
         )
     return df_shuts
-
+# get shuts from API
+# Output has columns: ['MSFSourceData','AssetCode','MaintenanceShutdown_BK', 'MaintenanceShutdownTypeName', 'MaintenanceShutdownStatusName', 'MaintenanceShutdownPlannedFeedOff','MaintenanceShutdownPlannedFeedOn']
 def get_shuts_approved_only_from_MSF_API(): # get approved shuts and output them in a data frame
     df_shuts = get_FXP_shuts_from_MSF_API(params_approved)
     run_datetime = datetime.now().strftime("%Y-%m-%d %H:%M")
-    df_shuts['MSFSourceData'] = f"MSF API - FXP - approved only - run at {run_datetime}"  # create a 'MSFSourceData' column with value such as 'MSF API run at 2026-10-26 10:31'    
+    df_shuts['MSFSourceData'] = f"MSF API - FXP - approved only - query run at {run_datetime}"  # create a 'MSFSourceData' column with value such as 'MSF API run at 2026-10-26 10:31'    
     df_shuts = df_shuts[['MSFSourceData','AssetCode','MaintenanceShutdown_BK', 'MaintenanceShutdownTypeName', 'MaintenanceShutdownStatusName', 'MaintenanceShutdownPlannedFeedOff','MaintenanceShutdownPlannedFeedOn']]
     return df_shuts 
 
@@ -164,7 +165,8 @@ def get_shuts_including_pending_from_MSF_API(): # get approved shuts and output 
     df_shuts = get_FXP_shuts_from_MSF_API(params_pending)
     run_datetime = datetime.now().strftime("%Y-%m-%d %H:%M")
     df_shuts['MSFSourceData'] = f"MSF API - FXP - including pending - run at {run_datetime}"  # create a 'MSFSourceData' column with value such as 'MSF API run at 2026-10-26 10:31'     df_shuts = df_shuts[['MSFSourceData','AssetCode','MaintenanceShutdown_BK', 'MaintenanceShutdownTypeName', 'MaintenanceShutdownStatusName', 'MaintenanceShutdownPlannedFeedOff','MaintenanceShutdownPlannedFeedOn']]
-    return df_shuts 
+    return df_shuts
+ 
 
 ### Test script 
 if __name__ == "__main__":  # the if condition prevent the above code from failing when called by another python file, but enable the following test code to run if exectuted from the current file
@@ -176,7 +178,6 @@ if __name__ == "__main__":  # the if condition prevent the above code from faili
         engine="openpyxl"
         )
     print(f"Saved to: Explore_API_crude_approved.xlsx")
-
     # get shuts including pending in a dataframe and export in excel
     df_pending = get_shuts_including_pending_from_MSF_API()  # get all shuts including pending - each shut is unique (it has the latest version whether approved or not)
     print(df_pending.head(5))
@@ -187,7 +188,6 @@ if __name__ == "__main__":  # the if condition prevent the above code from faili
         engine="openpyxl"
         )
     print(f"Saved to: Explore_API_pending.xlsx")
-
     # get approved shuts in a dataframe and export in excel
     df_approved = get_shuts_approved_only_from_MSF_API() # get approved only shuts - each shut is unique
     print(df_approved.head(5))
@@ -198,8 +198,6 @@ if __name__ == "__main__":  # the if condition prevent the above code from faili
         engine="openpyxl"
     )
     print(f"Saved to: Explore_API_approved.xlsx")
-
-
 ### End Test script
 
 ###     END of script
