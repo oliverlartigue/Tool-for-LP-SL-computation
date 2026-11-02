@@ -36,23 +36,21 @@ run_datetime = datetime.now().strftime("%Y-%m-%d %Hh%M")
 def get_raw_shut_from_excel_input(): 
     # get MSF shut 
     df_rawshuts = pd.read_excel(os.path.join(main_folder_path,'Main Input Files','MSF shuts.xlsx'))
-     # df_rawshuts row example: [VersionName:2027 January QF - Final Maintenance Snapshot, MaintenanceShutdown_BK:41667, MaintenanceShutdownTypeName:Scheduled, 
-     # ... MaintenanceShutdownStatusName:Approved Status, SourceIdentifier_AssetCode:BM4PLT MaintenanceShutdownPlannedFeedOff:26/11/2026  7:00:00 AM, MaintenanceShutdownPlannedFeedOn:26/11/2026]  9:00:00 AM]  
+     # df_rawshuts row example: [VersionName:2027 January QF - Final Maintenance Snapshot, MSFSourceData: 2027 January QF - Final Maintenance Snapshot - excel input run at 2026-11-02 08:21:15,  
+     # ... MaintenanceShutdown_BK:41667, MaintenanceShutdownTypeName:Scheduled, MaintenanceShutdownStatusName:Approved Status, SourceIdentifier_AssetCode:BM4PLT,
+     # ... MaintenanceShutdownPlannedFeedOff:26/11/2026,  7:00:00 AM, MaintenanceShutdownPlannedFeedOn:26/11/2026]  9:00:00 AM]  
     df_rawshuts = df_rawshuts[df_rawshuts['MaintenanceShutdownTypeName'] != 'Site Constraint']  # filter out shuts when Shut type = Site Constraint 
     df_rawshuts['MaintenanceShutdownStatusName'] = df_rawshuts['MaintenanceShutdownStatusName'].replace('Approved Status', 'Approved')  # replace 'Approved Status' by 'Approved' (so that it is consistnet with the API which has 'Approved')     
     # df_rawshuts['VersionName'] = f"df_rawshuts['VersionName'] - ORDW query run at {run_datetime}"
-    df_rawshuts['VersionName'] = df_rawshuts['VersionName'] + f" - Excel input run at {run_datetime}"
     df_rawshuts = df_rawshuts[
-        ['VersionName','SourceIdentifier_AssetCode','MaintenanceShutdown_BK', 'MaintenanceShutdownTypeName', 'MaintenanceShutdownStatusName', 'MaintenanceShutdownPlannedFeedOff','MaintenanceShutdownPlannedFeedOn']
+        ['MSFSourceData','SourceIdentifier_AssetCode','MaintenanceShutdown_BK', 'MaintenanceShutdownTypeName', 'MaintenanceShutdownStatusName', 'MaintenanceShutdownPlannedFeedOff','MaintenanceShutdownPlannedFeedOn']
         ].rename(
             columns={
-                "VersionName": "MSFSourceData",
                 "SourceIdentifier_AssetCode": "AssetCode"
             }
         )
-    # df_rawshuts row example: [MSFSourceData:2027 January QF - Final Maintenance Snapshot, MaintenanceShutdown_BK:41667, MaintenanceShutdownTypeName:Scheduled, 
-    # ... MaintenanceShutdownStatusName:Approved, AssetCode:BM4PLT, MaintenanceShutdownPlannedFeedOff:26/11/2026  7:00:00 AM, 
-    # ... MaintenanceShutdownPlannedFeedOn:26/11/2026]  9:00:00 AM]
+    # df_rawshuts row example: [2027 January QF - Final Maintenance Snapshot - excel input run at 2026-11-02 08:21:15, MaintenanceShutdown_BK:41667, MaintenanceShutdownTypeName:Scheduled, 
+    # ... MaintenanceShutdownStatusName:Approved, AssetCode:BM4PLT, MaintenanceShutdownPlannedFeedOff:26/11/2026  7:00:00 AM, MaintenanceShutdownPlannedFeedOn:26/11/2026]  9:00:00 AM]
     return df_rawshuts
 
 
@@ -221,9 +219,18 @@ print(f"Saved to: {output_file_1}")
 
 
 ### COMPARE OUTPUT WITH LP
-df_LP_SL = pd.read_excel(os.path.join(main_folder_path, 'Main Input Files','LP SL.xlsx'))  # get LP SL
-df_LP_FA = pd.read_excel(os.path.join(main_folder_path, 'Main Input Files','LP Auto Forward Adjustments.xlsx'))   # get LP FA
+# get LP total SL from excel file 
+LP_SL_file_path = os.path.join(main_folder_path, 'Main Input Files','LP SL.xlsx')
+LP_SL_file_modified_datetime = datetime.fromtimestamp(os.path.getmtime(LP_SL_file_path))
+df_LP_SL = pd.read_excel(LP_SL_file_path)
+df_LP_SL[['LP_SL_data_source']] = os.path.basename(LP_SL_file_path) +' - file dated ' + LP_SL_file_modified_datetime.strftime("%Y-%m-%d %H:%M")   # add data source 
+# get LP Auto Forward Adjustments for SL 
+LP_FA_file_path = os.path.join(main_folder_path, 'Main Input Files','LP Auto Forward Adjustments.xlsx')
+LP_FA_file_modified_datetime = datetime.fromtimestamp(os.path.getmtime(LP_FA_file_path))
+df_LP_FA = pd.read_excel(LP_FA_file_path)   # get LP FA
+df_LP_FA[['LP_FA_data_source']] = os.path.basename(LP_FA_file_path) +' - file dated ' + LP_FA_file_modified_datetime.strftime("%Y-%m-%d %H:%M")   # add data source 
 df_autoFA_split_LP = split_LP_AutoFA_by_splitweek(df_LP_FA, df_calendar)
+# run comparison
 df_comparison_SL_weekly = compare_SL_output_with_LP_weekly(df_SL_splitWeek ,df_LP_SL,df_autoFA_split_LP)
 df_comparison_SL_annual = compare_SL_output_with_LP_annual(df_comparison_SL_weekly)
 output_file_5 = os.path.join(main_folder_path, 'Main Output Files',f'run {run_datetime} - output_SL_comparison_with LP.xlsx')
@@ -235,7 +242,7 @@ MSFSourceDataNames = ", ".join(df_shuts["MSFSourceData"].dropna().astype(str).un
 with pd.ExcelWriter(output_file_5, engine="openpyxl") as writer:
     df_comparison_SL_annual.to_excel(writer, sheet_name="Annual Comparison", index=False, startrow=2)
     df_comparison_SL_weekly.to_excel(writer, sheet_name="SplitWeek Comparison", index=False, startrow=2)
-    for sheet_name in ["SplitWeek Comparison", "Annual Comparison"]: # loop to froamt excel output
+    for sheet_name in ["SplitWeek Comparison", "Annual Comparison"]: # loop to format excel output
         ws = writer.sheets[sheet_name]
         ws["A1"] = "SL output computed from shuts in '" + MSFSourceDataNames + "' and compared with Live Parameters" # Print info on first row          
         for cell in ws[3]:      # Wrap column names
@@ -244,7 +251,8 @@ with pd.ExcelWriter(output_file_5, engine="openpyxl") as writer:
             if col[2].value in ["SplitWeekStartDate", "SplitWeekEndDate", "YearStartDate", "YearEndDate" ]:
                 ws.column_dimensions[get_column_letter(col[2].column)].width = 11  # set column width at 11
                 for cell in col[1:]:
-                    cell.number_format = "d/mm/yyyy"  # Format datetime columns    
+                    cell.number_format = "d/mm/yyyy"  # Format datetime columns
+    ws.freeze_panes = "A4"  # freeze first 3 rows                          
 print(f"Saved to: {output_file_5}")
               
 ###     END of script

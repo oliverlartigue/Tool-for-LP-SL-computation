@@ -3,6 +3,7 @@
 
 import pandas as pd
 import os
+from datetime import datetime
 
 def split_LP_AutoFA_by_splitweek(df_LP_FA, df_calendar):  
 ### Input is a table with all auto froward adjustments for all assets from LP, output is a table with the FXP SL Forward adjustments with a value for each split week.
@@ -13,7 +14,10 @@ def split_LP_AutoFA_by_splitweek(df_LP_FA, df_calendar):
         (df_LP_FA['metricName'] == 'Scheduled Loss Planned Percentage')
         ]
     # Select and rename colomn in LP Forward Adjustments 
+    if "LP_FA_data_source" not in df_LP_FA.columns:
+        df_LP_FA["LP_FA_data_source"] = pd.NA
     df_LP_FA = df_LP_FA[[
+        "LP_FA_data_source",
         "assetGroup",
         "metricValue",
         "fromDate",            
@@ -45,6 +49,7 @@ def split_LP_AutoFA_by_splitweek(df_LP_FA, df_calendar):
     # SELECT AND ORDER THE FINAL COLUMNS
     df_split = df_split[
         [
+            "LP_FA_data_source",
             "asset",
             "SplitWeekStartDate",            
             "SplitWeekEndDate",
@@ -62,6 +67,8 @@ def compare_SL_output_with_LP_weekly (df_SL_output, df_SL_LP, df_autoFA_LP):
     # Ensure metricValue is numeric
     df_SL_LP["metricValue"] = pd.to_numeric(df_SL_LP["metricValue"],errors="coerce")
     # FILTER AND PIVOT df_SL_LP
+    if "LP_SL_data_source" not in df_SL_LP.columns:
+        df_SL_LP["LP_SL_data_source"] = pd.NA
     required_metrics = [
         "Calendar Time",
         "Scheduled Loss",
@@ -89,6 +96,7 @@ def compare_SL_output_with_LP_weekly (df_SL_output, df_SL_LP, df_autoFA_LP):
                 }
             )
         )
+    df_SL_LP_pivoted["LP_SL_data_source"] = (df_SL_LP["LP_SL_data_source"].iloc[0] if "LP_SL_data_source" in df_SL_LP.columns else pd.NA)
     # Convert percentage from values such as 3.125 to 0.03125
     if "SLPct_LP_AllSL" in df_SL_LP_pivoted.columns:  # check that 'SLPct_LP_AllSL' exist before making a computation
         df_SL_LP_pivoted["SLPct_LP_AllSL"] = df_SL_LP_pivoted["SLPct_LP_AllSL"] / 100
@@ -96,7 +104,7 @@ def compare_SL_output_with_LP_weekly (df_SL_output, df_SL_LP, df_autoFA_LP):
         print("WARNING: SLPct_LP_AllSL (aka Scheduled Loss Percentage) column is missing in LP data source")
 
     # Keep only the required Auto FA columns 
-    df_autoFA_LP = df_autoFA_LP[ ["asset","SplitWeekStartDate","SLPct_LP_AutoFA"]]
+    df_autoFA_LP = df_autoFA_LP[ ["LP_FA_data_source","asset","SplitWeekStartDate","SLPct_LP_AutoFA"]]
     # JOIN LP Auto FA to LP SL
     df_LP = df_SL_LP_pivoted.merge(
         df_autoFA_LP,
@@ -149,11 +157,13 @@ def compare_SL_output_with_LP_weekly (df_SL_output, df_SL_LP, df_autoFA_LP):
             "SplitWeekStartDate",
             "SplitWeekEndDate",            
             "CalendarHours_Output",
+            "LP_SL_data_source",
             "SLHours_Output",
             "SLPct_Output",
             "CalendarHours_LP",
             "SLHours_LP_AllSL",
             "SLPct_LP_AllSL",
+            "LP_FA_data_source",
             "SLHours_LP_AutoFA",
             "SLPct_LP_AutoFA",
             'CTHours_Output_less_LP',
@@ -193,9 +203,11 @@ def compare_SL_output_with_LP_annual(df_comparison):
             SplitWeekStartDate=("SplitWeekStartDate", "min"),
             SplitWeekEndDate=("SplitWeekEndDate", "max"),
             CalendarHours_Output=("CalendarHours_Output", "sum"),
+            LP_SL_data_source=("LP_SL_data_source", "first"),
             SLHours_Output=("SLHours_Output", "sum"),
             CalendarHours_LP=("CalendarHours_LP", "sum"),
             SLHours_LP_AllSL=("SLHours_LP_AllSL", "sum"),
+            LP_FA_data_source=("LP_FA_data_source", "first"),
             SLHours_LP_AutoFA=("SLHours_LP_AutoFA","sum")
             )
         ).rename(
@@ -222,12 +234,14 @@ def compare_SL_output_with_LP_annual(df_comparison):
             "YearStartDate",
             "YearEndDate",
             "CalendarHours_Output",
+            "LP_SL_data_source",
             "SLHours_Output",
             "SLPct_Output",
             "CalendarHours_LP",
             "SLHours_LP_AllSL",
             "SLPct_LP_AllSL",
-             "SLHours_LP_AutoFA",           
+            "LP_FA_data_source",
+            "SLHours_LP_AutoFA",           
             "SLPct_LP_AutoFA",
             "CTHours_Output_less_LP",
             "SLHours_Output_less_LP_AllSL",           
@@ -249,9 +263,19 @@ def compare_SL_output_with_LP_annual(df_comparison):
 if __name__ == "__main__":  # the if condition prevent the above code from failing when called by another python file, but enable the following test code to run if exectuted from the current file
     main_folder_path = r'C:\Users\oliver.lartigue\OneDrive - Rio Tinto\Documents\31. Tool for LP SL computation\Testing Input and Output Files'
     df_Output_SL = pd.read_excel(os.path.join(main_folder_path, 'input_for_testing_compare_output_with_LP_outputsl.xlsx'))
-    df_LP_SL = pd.read_csv(os.path.join(main_folder_path, 'input_for_testing_compare_output_with_LP_lpsl.csv'))
-    df_calendar = pd.read_excel(os.path.join(main_folder_path, 'input_for_testing_calendar.xlsx'))    
-    df_LP_FA = pd.read_excel(os.path.join(main_folder_path, 'input_for_testing_LP auto_forward_adjustments.xlsx'))
+    # get LP total SL 
+    LP_SL_csv_file_path = os.path.join(main_folder_path, 'input_for_testing_compare_output_with_LP_lpsl.csv')
+    LP_SL_csv_file_modified_datetime = datetime.fromtimestamp(os.path.getmtime(LP_SL_csv_file_path))
+    df_LP_SL = pd.read_csv(LP_SL_csv_file_path) 
+    df_LP_SL[['LP_SL_data_source']] = os.path.basename(LP_SL_csv_file_path) +' - ' + LP_SL_csv_file_modified_datetime.strftime("%Y-%m-%d %H:%M")   # add data source 
+    # get calendar for split week start and end dates
+    df_calendar = pd.read_excel(os.path.join(main_folder_path, 'input_for_testing_calendar.xlsx'))   
+    # get LP Auto Forward Adjustments for SL
+    LP_FA_excel_file_path = os.path.join(main_folder_path, 'input_for_testing_LP auto_forward_adjustments.xlsx')
+    LP_FA_excel_file_modified_datetime = datetime.fromtimestamp(os.path.getmtime(LP_FA_excel_file_path))
+    df_LP_FA = pd.read_excel(LP_FA_excel_file_path)
+    df_LP_FA[['LP_FA_data_source']] = os.path.basename(LP_FA_excel_file_path) +' - ' + LP_FA_excel_file_modified_datetime.strftime("%Y-%m-%d %H:%M")   # add data source 
+    # run comparison
     df_autoFA_split_LP = split_LP_AutoFA_by_splitweek(df_LP_FA, df_calendar)
     df_comparison_weekly = compare_SL_output_with_LP_weekly(df_Output_SL ,df_LP_SL,df_autoFA_split_LP)
     df_comparison_annual = compare_SL_output_with_LP_annual(df_comparison_weekly)
