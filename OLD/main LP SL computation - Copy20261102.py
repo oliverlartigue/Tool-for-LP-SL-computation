@@ -145,6 +145,15 @@ df_SL_opDay = SL_hours_by_asset_by_operating_day(effective_hours_by_asset_by_sta
 # sum SL hours by assets and by split week
 df_SL_splitWeek = SL_hours_by_asset_by_split_week(df_SL_opDay, df_calendar)
 
+
+# # TEMP #####
+# main_folder_path = r'C:\Users\oliver.lartigue\OneDrive - Rio Tinto\Documents\31. Tool for LP SL computation\Testing Input and Output Files'
+# output_file_1 = os.path.join(main_folder_path, 'input_for_testing_df_SL_opDay_from_main.xlsx')
+# df_SL_opDay.to_excel(output_file_1, index=False)
+# print(f"Saved to: {output_file_1}")
+# ### TEMP
+
+
 ### WRITE OUTPUT IN EXCEL
 
 # write an excel file with the MSF shut

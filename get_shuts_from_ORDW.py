@@ -53,7 +53,7 @@ def get_unprocessed_shuts_from_MSFsnapshot_in_ORDW(snapshot_name):
 
 # get raw shuts (excluding shuts with 'Shut type' = 'Site Constraint')
 # output has columns: ['MSFSourceData','AssetCode','MaintenanceShutdown_BK', 'MaintenanceShutdownTypeName', 'MaintenanceShutdownStatusName', 'MaintenanceShutdownPlannedFeedOff','MaintenanceShutdownPlannedFeedOn']
-def get_raw_shuts_from_MSFsnapshot_in_ORDW(snapshot_name): 
+def get_shuts_from_MSFsnapshot_in_ORDW(snapshot_name): 
     df_rawshuts = get_unprocessed_shuts_from_MSFsnapshot_in_ORDW(snapshot_name)
     df_rawshuts = df_rawshuts[df_rawshuts['MaintenanceShutdownTypeName'] != 'Site Constraint']  # filter out shuts when Shut type = Site Constraint 
     df_rawshuts['MaintenanceShutdownStatusName'] = df_rawshuts['MaintenanceShutdownStatusName'].replace('Approved Status', 'Approved')  # replace 'Approved Status' by 'Approved' (so that it is consistnet with the API which has 'Approved')     
@@ -76,10 +76,10 @@ def get_raw_shuts_from_MSFsnapshot_in_ORDW(snapshot_name):
 snapshot_name_for_testing_1 = "2027 January QF - Final Maintenance Snapshot"
 snapshot_name_for_testing_2 = "2026 October QF - Final Maintenance Snapshot"
 if __name__ == "__main__":  # the if condition prevent the above code from failing when called by another python file, but enable the following test code to run if exectuted from the current file
-    df_shuts_1 = get_raw_shuts_from_MSFsnapshot_in_ORDW(snapshot_name_for_testing_1)
+    df_shuts_1 = get_shuts_from_MSFsnapshot_in_ORDW(snapshot_name_for_testing_1)
     print(df_shuts_1.head())
     print(df_shuts_1.shape)
-    df_shuts_2 = get_raw_shuts_from_MSFsnapshot_in_ORDW(snapshot_name_for_testing_2)
+    df_shuts_2 = get_shuts_from_MSFsnapshot_in_ORDW(snapshot_name_for_testing_2)
     print(df_shuts_2.head())
     print(df_shuts_2.shape)
 ### End Test script

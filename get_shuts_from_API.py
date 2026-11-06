@@ -136,10 +136,13 @@ def get_FXP_shuts_from_MSF_API(params): # get shuts  in a data frame
                 "version_type.name": "MaintenanceShutdownTypeName"
             }
         )
-    df_shuts["AssetCode"] = df_shuts["AssetCode"].apply(lambda x: x[0].get("code") if isinstance(x, list) and len(x) > 0 else None)  # get 'code' value from the dictionary in the 'AssetCode' col - API has one code per row, to avoid the code to fail in case of mutliple asset code in a row, select the first value
-    for index, value in df_shuts["AssetCode"].items():
-        if isinstance(value, list) and len(value) > 1:
-            print(f"WARNING: Row {index} has multiple AssetCode values: {value}")  # print a warning message if a row has more than one asset code
+    df_shuts = df_shuts[df_shuts['MaintenanceShutdownTypeName'] != 'Site Constraint']  # filter out shuts when Shut type = Site Constraint 
+    df_shuts = df_shuts.explode("AssetCode", ignore_index=True)
+    df_shuts["AssetCode"] = df_shuts["AssetCode"].apply(lambda x: x.get("code") if isinstance(x, dict) else None) # get all the 'code' values - if API has more than one code per row, it will duplicate rows to get one code per row
+    # df_shuts["AssetCode"] = df_shuts["AssetCode"].apply(lambda x: x[0].get("code") if isinstance(x, list) and len(x) > 0 else None)  # get 'code' value from the dictionary in the 'AssetCode' col - API has one code per row, to avoid the code to fail in case of mutliple asset code in a row, select the first value
+    # for index, value in df_shuts["AssetCode"].items():
+    #     if isinstance(value, list) and len(value) > 1:
+    #         print(f"WARNING: Row {index} has multiple AssetCode values: {value}")  # print a warning message if a row has more than one asset code
     run_datetime = datetime.now().strftime("%Y-%m-%d %H:%M")
     df_shuts['MSFSourceData'] = f"MSF API - FXP - including pending - query run at {run_datetime}"  # create a 'MSFSourceData' column with value such as 'MSF API run at 2026-10-26 10:31'    
     for col in ["MaintenanceShutdownPlannedFeedOff","MaintenanceShutdownPlannedFeedOn"]:
